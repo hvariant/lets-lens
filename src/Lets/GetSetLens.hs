@@ -343,9 +343,9 @@ product ::
   Lens a b
   -> Lens c d
   -> Lens (a, c) (b, d)
-product (Lens sab gab) (Lens scd gcd) = Lens s g
+product (Lens sab gab) (Lens scd gcd_) = Lens s g
   where s (a, c) (b, d) = (sab a b, scd c d)
-        g (a, c) = (gab a, gcd c)
+        g (a, c) = (gab a, gcd_ c)
 
 -- | An alias for @product@.
 (***) ::
