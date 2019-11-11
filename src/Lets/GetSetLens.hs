@@ -465,7 +465,7 @@ addressL =
 getSuburb ::
   Person
   -> String
-getSuburb = get (compose suburbL addressL)
+getSuburb = get (suburbL |. addressL)
 
 -- |
 --
@@ -478,7 +478,7 @@ setStreet ::
   Person
   -> String
   -> Person
-setStreet = set (compose streetL addressL)
+setStreet = set (streetL |. addressL)
 
 -- |
 --
@@ -513,7 +513,7 @@ setCityAndLocality = set (cityL |. localityL |. addressL *** localityL)
 getSuburbOrCity ::
   Either Address Locality
   -> String
-getSuburbOrCity = get (choice suburbL cityL)
+getSuburbOrCity = get (suburbL ||| cityL)
 
 -- |
 --
@@ -526,7 +526,7 @@ setStreetOrState ::
   Either Person Locality
   -> String
   -> Either Person Locality
-setStreetOrState = set (choice (streetL |. addressL) stateL)
+setStreetOrState = set (streetL |. addressL ||| stateL)
 
 -- |
 --
