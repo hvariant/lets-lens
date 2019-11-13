@@ -98,7 +98,7 @@ import Prelude hiding (product)
 --
 -- class (Foldable t, Functor t) => Traversable t where
 --   traverse ::
---     Applicative f => 
+--     Applicative f =>
 --     (a -> f b)
 --     -> t a
 --     -> f (t b)
@@ -111,8 +111,7 @@ fmapT ::
   (a -> b)
   -> t a
   -> t b
-fmapT =
-  error "todo: fmapT"
+fmapT f = getIdentity . traverse (Identity . f)
 
 -- | Let's refactor out the call to @traverse@ as an argument to @fmapT@.
 over :: 
@@ -120,8 +119,7 @@ over ::
   -> (a -> b)
   -> s
   -> t
-over =
-  error "todo: over"
+over l f = getIdentity . l (Identity . f)
 
 -- | Here is @fmapT@ again, passing @traverse@ to @over@.
 fmapTAgain ::
@@ -129,8 +127,7 @@ fmapTAgain ::
   (a -> b)
   -> t a
   -> t b
-fmapTAgain =
-  error "todo: fmapTAgain"
+fmapTAgain = over traverse
 
 -- | Let's create a type-alias for this type of function.
 type Set s t a b =
@@ -143,22 +140,19 @@ type Set s t a b =
 sets ::
   ((a -> b) -> s -> t)
   -> Set s t a b  
-sets =
-  error "todo: sets"
+sets f p = Identity . f (getIdentity . p)
 
 mapped ::
   Functor f =>
   Set (f a) (f b) a b
-mapped =
-  error "todo: mapped"
+mapped = sets fmap
 
 set ::
   Set s t a b
   -> s
   -> b
   -> t
-set =
-  error "todo: set"
+set l s b = over l (const b) s
 
 ----
 
@@ -170,8 +164,7 @@ foldMapT ::
   (a -> b)
   -> t a
   -> b
-foldMapT =
-  error "todo: foldMapT"
+foldMapT f = getConst . traverse (Const . f)
 
 -- | Let's refactor out the call to @traverse@ as an argument to @foldMapT@.
 foldMapOf ::
@@ -179,8 +172,7 @@ foldMapOf ::
   -> (a -> r)
   -> s
   -> r
-foldMapOf =
-  error "todo: foldMapOf"
+foldMapOf l f = getConst . l (Const . f)
 
 -- | Here is @foldMapT@ again, passing @traverse@ to @foldMapOf@.
 foldMapTAgain ::
@@ -188,8 +180,7 @@ foldMapTAgain ::
   (a -> b)
   -> t a
   -> b
-foldMapTAgain =
-  error "todo: foldMapTAgain"
+foldMapTAgain = foldMapOf traverse
 
 -- | Let's create a type-alias for this type of function.
 type Fold s t a b =
@@ -206,14 +197,12 @@ folds ::
   -> (a -> Const b a)
   -> s
   -> Const t s
-folds =
-  error "todo: folds"
+folds l p = Const . l (getConst . p)
 
 folded ::
   Foldable f =>
   Fold (f a) (f a) a a
-folded =
-  error "todo: folded"
+folded = folds foldMap
 
 ----
 
@@ -227,8 +216,7 @@ get ::
   Get a s a
   -> s
   -> a
-get =
-  error "todo: get"
+get l = getConst . l Const
 
 ----
 
@@ -243,20 +231,19 @@ type Traversal s t a b =
 -- | Traverse both sides of a pair.
 both ::
   Traversal (a, a) (b, b) a b
-both =
-  error "todo: both"
+both p (a1, a2) = (,) <$> p a1 <*> p a2
 
 -- | Traverse the left side of @Either@.
 traverseLeft ::
   Traversal (Either a x) (Either b x) a b
-traverseLeft =
-  error "todo: traverseLeft"
+traverseLeft p (Left a) = Left <$> p a
+traverseLeft _ (Right x) = pure (Right x)
 
 -- | Traverse the right side of @Either@.
 traverseRight ::
   Traversal (Either x a) (Either x b) a b
-traverseRight =
-  error "todo: traverseRight"
+traverseRight p (Right a) = Right <$> p a
+traverseRight _ (Left x) = pure (Left x)
 
 type Traversal' a b =
   Traversal a a b b
@@ -286,44 +273,48 @@ type Prism s t a b =
 
 _Left ::
   Prism (Either a x) (Either b x) a b
-_Left =
-  error "todo: _Left"
+_Left = dimap id g . left
+  where g = either (fmap Left) (pure . Right)
 
 _Right ::
-  Prism (Either x a) (Either x b) a b 
-_Right =
-  error "todo: _Right"
+  Prism (Either x a) (Either x b) a b
+_Right = dimap id g . right
+  where g = either (pure . Left) (fmap Right)
 
 prism ::
   (b -> t)
   -> (s -> Either t a)
   -> Prism s t a b
-prism =
-  error "todo: prism"
+prism bt seta = dimap seta f . right
+  where f (Left t) = pure t
+        f (Right fb) = bt <$> fb
 
 _Just ::
   Prism (Maybe a) (Maybe b) a b
-_Just =
-  error "todo: _Just"
+_Just = prism Just seta
+  where seta (Just a) = Right a
+        seta Nothing = Left Nothing
 
 _Nothing ::
   Prism (Maybe a) (Maybe a) () ()
-_Nothing =
-  error "todo: _Nothing"
+_Nothing = prism (const Nothing) seta
+  where seta (Just a) = Left (Just a)
+        seta Nothing = Right ()
 
 setP ::
   Prism s t a b
   -> s
   -> Either t a
-setP _ _ =
-  error "todo: setP"
+setP p = swaplr . p Left
+  where swaplr (Left a) = Right a
+        swaplr (Right a) = Left a
+-- p and f can be literally anything!!!
 
 getP ::
   Prism s t a b
   -> b
   -> t
-getP _ _ =
-  error "todo: getP"
+getP p b = getIdentity . getTagged . p . Tagged $ Identity b
 
 type Prism' a b =
   Prism a a b b
