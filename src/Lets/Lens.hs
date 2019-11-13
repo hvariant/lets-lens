@@ -337,8 +337,7 @@ modify ::
   -> (a -> b)
   -> s
   -> t
-modify _ _ _ =
-  error "todo: modify"
+modify l f = getIdentity . l (Identity . f)
 
 -- | An alias for @modify@.
 (%~) ::
@@ -367,8 +366,7 @@ infixr 4 %~
   -> b
   -> s
   -> t
-(.~) _ _ _ =
-  error "todo: (.~)"
+(.~) l b = modify l (const b)
 
 infixl 5 .~
 
@@ -387,9 +385,8 @@ fmodify ::
   Lens s t a b
   -> (a -> f b)
   -> s
-  -> f t 
-fmodify _ _ _ =
-  error "todo: fmodify"
+  -> f t
+fmodify = id
 
 -- |
 --
@@ -404,8 +401,7 @@ fmodify _ _ _ =
   -> f b
   -> s
   -> f t
-(|=) _ _ _ =
-  error "todo: (|=)"
+(|=) l fb = fmodify l (const fb)
 
 infixl 5 |=
 
@@ -415,8 +411,7 @@ infixl 5 |=
 -- (30,"abc")
 fstL ::
   Lens (a, x) (b, x) a b
-fstL =
-  error "todo: fstL"
+fstL f (a, x) = (\b -> (b , x)) <$> f a
 
 -- |
 --
@@ -424,8 +419,7 @@ fstL =
 -- (13,"abcdef")
 sndL ::
   Lens (x, a) (x, b) a b
-sndL =
-  error "todo: sndL"
+sndL f (x, a) = (\b -> (x, b)) <$> f a
 
 -- |
 --
@@ -455,8 +449,9 @@ mapL ::
   Ord k =>
   k
   -> Lens (Map k v) (Map k v) (Maybe v) (Maybe v)
-mapL =
-  error "todo: mapL"
+mapL k f s = c <$> f (Map.lookup k s)
+  where c Nothing = Map.delete k s
+        c (Just v) = Map.insert k v s
 
 -- |
 --
@@ -486,8 +481,9 @@ setL ::
   Ord k =>
   k
   -> Lens (Set.Set k) (Set.Set k) Bool Bool
-setL =
-  error "todo: setL"
+setL k f s = c <$> f (Set.member k s)
+  where c True = Set.insert k s
+        c False = Set.delete k s
 
 -- |
 --
@@ -500,8 +496,7 @@ compose ::
   Lens s t a b
   -> Lens q r s t
   -> Lens q r a b
-compose _ _ =
-  error "todo: compose"
+compose = flip (.)
 
 -- | An alias for @compose@.
 (|.) ::
@@ -522,8 +517,7 @@ infixr 9 |.
 -- 4
 identity ::
   Lens a b a b
-identity =
-  error "todo: identity"
+identity = id
 
 -- |
 --
@@ -536,8 +530,11 @@ product ::
   Lens s t a b
   -> Lens q r c d
   -> Lens (s, q) (t, r) (a, c) (b, d)
-product _ _ =
-  error "todo: product"
+product r1 r2 p (s, q) = getAlongsideRight (r2 f2 q)
+  where
+    f2 c = AlongsideRight . getAlongsideLeft $ r1 f1 s
+      where f1 a = AlongsideLeft $ p (a,c)
+-- copied from OpticPolyLens.hs
 
 -- | An alias for @product@.
 (***) ::
@@ -566,8 +563,8 @@ choice ::
   Lens s t a b
   -> Lens q r a b
   -> Lens (Either s q) (Either t r) a b
-choice _ _ =
-  error "todo: choice"
+choice r1 _ f (Left s) = Left <$> r1 f s
+choice _ r2 f (Right s) = Right <$> r2 f s
 
 -- | An alias for @choice@.
 (|||) ::
@@ -650,8 +647,7 @@ intAndL p (IntAnd n a) =
 getSuburb ::
   Person
   -> String
-getSuburb =
-  error "todo: getSuburb"
+getSuburb = get (suburbL |. addressL)
 
 -- |
 --
@@ -664,8 +660,7 @@ setStreet ::
   Person
   -> String
   -> Person
-setStreet =
-  error "todo: setStreet"
+setStreet = set (streetL |. addressL)
 
 -- |
 --
@@ -677,8 +672,7 @@ setStreet =
 getAgeAndCountry ::
   (Person, Locality)
   -> (Int, String)
-getAgeAndCountry =
-  error "todo: getAgeAndCountry"
+getAgeAndCountry = get (ageL *** countryL)
 
 -- |
 --
@@ -689,9 +683,8 @@ getAgeAndCountry =
 -- (Person 28 "Mary" (Address "83 Mary Ln" "Maryland" (Locality "Some Other City" "Western Mary" "Maristan")),Address "15 Fred St" "Fredville" (Locality "Mary Mary" "Western Mary" "Maristan"))
 setCityAndLocality ::
   (Person, Address) -> (String, Locality) -> (Person, Address)
-setCityAndLocality =
-  error "todo: setCityAndLocality"
-  
+setCityAndLocality = set (cityL |. localityL |. addressL *** localityL)
+
 -- |
 --
 -- >>> getSuburbOrCity (Left maryAddress)
@@ -702,8 +695,7 @@ setCityAndLocality =
 getSuburbOrCity ::
   Either Address Locality
   -> String
-getSuburbOrCity =
-  error "todo: getSuburbOrCity"
+getSuburbOrCity = get (suburbL ||| cityL)
 
 -- |
 --
@@ -716,8 +708,7 @@ setStreetOrState ::
   Either Person Locality
   -> String
   -> Either Person Locality
-setStreetOrState =
-  error "todo: setStreetOrState"
+setStreetOrState = set (streetL |. addressL ||| stateL)
 
 -- |
 --
@@ -729,8 +720,7 @@ setStreetOrState =
 modifyCityUppercase ::
   Person
   -> Person
-modifyCityUppercase =
-  error "todo: modifyCityUppercase"
+modifyCityUppercase = modify (cityL |. localityL |. addressL) (fmap toUpper)
 
 -- |
 --
@@ -742,8 +732,7 @@ modifyCityUppercase =
 modifyIntAndLengthEven ::
   IntAnd [a]
   -> IntAnd Bool
-modifyIntAndLengthEven =
-  error "todo: modifyIntAndLengthEven"
+modifyIntAndLengthEven = modify intAndL (even . length)
 
 ----
 
@@ -753,8 +742,8 @@ modifyIntAndLengthEven =
 -- Locality "ABC" "DEF" "GHI"
 traverseLocality ::
   Traversal' Locality String
-traverseLocality =
-  error "todo: traverseLocality"
+traverseLocality f (Locality city state country) =
+  Locality <$> f city <*> f state <*> f country
 
 -- |
 --
@@ -765,13 +754,15 @@ traverseLocality =
 -- IntOrIsNot "abc"
 intOrIntP ::
   Prism' (IntOr a) Int
-intOrIntP =
-  error "todo: intOrIntP"
+intOrIntP = prism IntOrIs seta
+  where seta (IntOrIsNot a) = Left (IntOrIsNot a)
+        seta (IntOrIs i) = Right i
 
 intOrP ::
   Prism (IntOr a) (IntOr b) a b
-intOrP =
-  error "todo: intOrP"
+intOrP = prism IntOrIsNot seta
+  where seta (IntOrIsNot a) = Right a
+        seta (IntOrIs i) = Left (IntOrIs i)
 
 -- |
 --
@@ -786,5 +777,4 @@ intOrP =
 intOrLengthEven ::
   IntOr [a]
   -> IntOr Bool
-intOrLengthEven =
-  error "todo: intOrLengthEven"
+intOrLengthEven = over intOrP (even . length)
